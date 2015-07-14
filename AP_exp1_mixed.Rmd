@@ -8,7 +8,7 @@ output:
         fig_height: 3.9
 ---
 
-Back in 2011 I published a paper with Adele Goldberg ([Boyd & Goldberg, 2011](http://wp.me/a4ouse-2s)) that used logit mixed effects models to analyze speakers' use of *a*-adjectives---e.g., words like *asleep*, *afloat*, and *alive*. At the time, the usual way to figure out which random effects to include in a mixed model was to use model comparison to identify the model that provided the best balance between fit and complexity (e.g., [Baayen, 2008](http://www.sfs.uni-tuebingen.de/~hbaayen/publications/baayenCUPstats.pdf)).
+Back in 2011 I published a paper with Adele Goldberg ([Boyd & Goldberg, 2011](http://www.jeremyboyd.org/wp-content/uploads/2015/05/Boyd2011.pdf)) that used logit mixed effects models to analyze speakers' use of *a*-adjectives---e.g., words like *asleep*, *afloat*, and *alive*. At the time, the usual way to figure out which random effects to include in a mixed model was to use model comparison to identify the model that provided the best balance between fit and complexity (e.g., [Baayen, 2008](http://www.sfs.uni-tuebingen.de/~hbaayen/publications/baayenCUPstats.pdf)).
 
 But at least a couple of things have changed since then. First, [Barr et al. (2013)](http://www.sciencedirect.com/science/article/pii/S0749596X12001180) made a convincing argument in favor of using the "maximal random effects structure justified by the study design" (p. 255). They showed that failing to do so increases the likelihood of Type I errors. Since my published models from 2011 included only random participant intercepts rather than the maximal random effects structure, it's possible that they indentified factors as being statistically significant, when in fact they weren't.
 
