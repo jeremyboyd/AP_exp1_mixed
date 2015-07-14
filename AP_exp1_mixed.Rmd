@@ -18,13 +18,13 @@ To determine whether I could successfully fit a model of my *a*-adjective data w
 
 # The experiment
 
-Experiment 1 tested two hypotheses: (1) that native speakers of English disprefer using specific *a*-adjectives like *asleep*, *afloat*, and *alive* before the nouns they modify, and (2) that this restriction extends beyond the specific adjectives that speakers have experienced to *a*-adjectives in general---i.e., to novel *a*-adjectives like *ablim* and *adax*.
+Experiment 1 tested two hypotheses: (1) that native speakers of English disprefer using specific *a*-adjectives like *asleep*, *afloat*, and *alive* before the nouns they modify, and (2) that this restriction extends beyond the adjectives that speakers have experienced to *a*-adjectives in general---i.e., to novel *a*-adjectives like *ablim* and *adax*.
 
 Adult speakers of English viewed animations in which one of two labeled animals moved to a star. For example, a speaker might see an animation with two hamsters---one labeled "sleepy" and the other labeled "vigilant"---where the hamster labeled "sleepy" moved to a star. After viewing the animations, speakers were asked to briefly describe them.
 
 We manipulated the adjective class (*a* vs. non-*a*) and novelty (novel vs. real) of the adjectives that speakers produced in a 2 x 2 factorial design. This created four conditions where descriptions with different kinds of adjectives were elicited: real *a*-adjectives (e.g., *asleep*), novel *a*-adjectives (e.g., *ablim*), real non-*a*-adjectives (e.g., *sleepy*), and novel non-*a*-adjectives (e.g., *chammy*).
 
-The dependent variable was the type of structure that speakers used adjectives in, e.g.
+The dependent variable was the type of structure that speakers used the adjectives in, e.g.
 
 * **Attributive**: The sleepy hamster moved to the star.
 * **Relative clause**: The hamster that's sleepy moved to the star.
@@ -119,7 +119,7 @@ theme_set(theme_classic(base_size = 24))
             breaks = seq(0, 100, 20)))
 ```
 
-The figure suggests that speakers do indeed disprefer using *a*-adjectives attributively. In addition, it appears as if there may even be attributive avoidance for novel *a*-adjectives. This is important because it would provide evidence for the psychological reality of an abstract *a*-adjective class. The models that I create below explore these findings more rigorously.
+This figure suggests that speakers do indeed disprefer using *a*-adjectives attributively. In addition, it appears as if there may even be attributive avoidance for novel *a*-adjectives. This is important because it would provide evidence for the psychological reality of an abstract *a*-adjective class. The models that I create below explore these findings more rigorously.
 
 # Defining the maximal random effects structure
 
@@ -137,7 +137,7 @@ head(xtabs(~ Item + AdjClass, data = adj.crit))
 head(xtabs(~ Item + Novelty, data = adj.crit))
 ```
 
-This means that the model should include a number of participant-specific random effects---random participant intercepts, and slopes for adjective class and novelty---but only random intercepts at the level of items.
+This means that the model should include a number of participant-specific random effects---random participant intercepts, and slopes for adjective class and novelty. But at the level of items all that we need are random intercepts.
 
 ```{r, echo = FALSE}
 # Store proportions of data for each factor.
@@ -165,7 +165,7 @@ exp1.glmer1 <- glmer(Response == "attributive" ~ 1 + AdjClass * Novelty
                      + (1|Item), family = "binomial", data = adj.crit)
 ```
 
-There are lots of different ways to troubleshoot lme4 convergence warnings. A helpful summary that I've used in the past can be found [here](https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html). In the present case the fix is relatively simple. The default for generalized linear mixed effects models is to use the bobyqa optimizer for the first phase of fitting, and Nelder-Mead for the second. Here, I restart the fitting process from `exp1.glmer1`'s ending parameters, and specify use of the bobyqa optimizer for both phases. This allows for successful convergence. The model replicates two findings from Boyd and Goldberg (2011): (1) *a*-adjectives are less likely than non-*a*-adjectives to be used attributively, and (2) that novel adjectives are more likely than real adjectives to be used attributively.
+There are lots of different ways to troubleshoot lme4 convergence warnings. A helpful summary that I've used in the past can be found [here](https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html). In the present case the fix is relatively simple. The default for generalized linear mixed effects models is to use the bobyqa optimizer for the first phase of fitting, and Nelder-Mead for the second. Here, I restart the fitting process from `exp1.glmer1`'s ending parameters, and specify use of the bobyqa optimizer for both phases. This allows for successful convergence. The model replicates two findings from Boyd and Goldberg (2011): (1) *a*-adjectives are less likely than non-*a*-adjectives to be used attributively, and (2) novel adjectives are more likely than real adjectives to be used attributively.
 
 ```{r}
 ss <- getME(exp1.glmer1, c("theta","fixef"))
