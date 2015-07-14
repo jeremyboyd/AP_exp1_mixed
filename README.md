@@ -1,0 +1,1 @@
+This code fits a series of logit mixed models to data from Boyd and Goldberg (2011)'s Experiment 1. All models use the maximal random effects structure, as advocated by Barr et al. (2013). All results from Boyd and Goldberg are replicated.
