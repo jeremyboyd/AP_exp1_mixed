@@ -4,8 +4,8 @@ author: "Jeremy Boyd"
 date: "July 13, 2015"
 output:
     html_document:
-        fig_width: 9.0
-        fig_height: 3.9
+        fig_width: 7.0
+        fig_height: 4.0
 ---
 
 Back in 2011 I published a paper with Adele Goldberg ([Boyd & Goldberg, 2011](http://www.jeremyboyd.org/wp-content/uploads/2015/05/Boyd2011.pdf)) that used logit mixed effects models to analyze speakers' use of *a*-adjectives---e.g., words like *asleep*, *afloat*, and *alive*. At the time, the usual way to figure out which random effects to include in a mixed model was to use model comparison to identify the model that provided the best balance between fit and complexity (e.g., [Baayen, 2008](http://www.sfs.uni-tuebingen.de/~hbaayen/publications/baayenCUPstats.pdf)).
@@ -116,7 +116,8 @@ theme_set(theme_classic(base_size = 24))
     + scale_x_discrete(name = "Novelty", limits = c("real", "novel"),
             breaks = c("real", "novel"), labels = c("Real", "Novel"))
     + scale_y_continuous(name = "Attributive Use (%)", limits = c(0, 100),
-            breaks = seq(0, 100, 20)))
+            breaks = seq(0, 100, 20))
+    + theme(axis.title.y = element_text(vjust = 0.6)))
 ```
 
 This figure suggests that speakers do indeed disprefer using *a*-adjectives attributively. In addition, it appears as if there may even be attributive avoidance for novel *a*-adjectives. This is important because it would provide evidence for the psychological reality of an abstract *a*-adjective class. The models that I create below explore these findings more rigorously.
