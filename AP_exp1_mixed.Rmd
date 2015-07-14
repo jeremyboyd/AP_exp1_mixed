@@ -1,169 +1,157 @@
 ---
 title: "A logit mixed model of *a*-adjective production"
 author: "Jeremy Boyd"
-date: "July 1, 2015"
+date: "July 13, 2015"
 output:
     html_document:
         fig_width: 9.0
-        fig_height: 3.5
+        fig_height: 3.9
 ---
 
-# Introduction
+Back in 2011 I published a paper with Adele Goldberg ([Boyd & Goldberg, 2011](http://wp.me/a4ouse-2s)) that used logit mixed effects models to analyze speakers' use of *a*-adjectives---e.g., words like *asleep*, *afloat*, and *alive*. At the time, the usual way to figure out which random effects to include in a mixed model was to use model comparison to identify the model that provided the best balance between fit and complexity (e.g., [Baayen, 2008](http://www.sfs.uni-tuebingen.de/~hbaayen/publications/baayenCUPstats.pdf)).
 
-This article provides the complete code used to build a logit mixed model. The data for the model come from Boyd and Goldberg (2011), who employed a simple production task to investigate how speakers used different adjectives across three experiments.
+But at least a couple of things have changed since then. First, [Barr et al. (2013)](http://www.sciencedirect.com/science/article/pii/S0749596X12001180) made a convincing argument in favor of using the "maximal random effects structure justified by the study design" (p. 255). They showed that failing to do so increases the likelihood of Type I errors. Since my published models from 2011 included only random participant intercepts rather than the maximal random effects structure, it's possible that they indentified factors as being statistically significant, when in fact they weren't.
 
-The independent variables in the study were Phonology (*a* vs. non-*a*) and Novelty (familiar vs. novel). These were crossed to create four classes of adjectives that speakers were asked to use in sentences: familiar *a*-adjectives (e.g., *asleep*), novel *a*-adjectives (e.g., *ablim*), familiar non-*a*-adjectives (e.g., *sleepy*), and novel non-*a*-adjectives (e.g., *chammy*).
+The other thing that changed was [lme4](http://cran.r-project.org/web/packages/lme4/index.html)---the R package used to fit mixed effects models. Versions of lme4 that have been published since 2011 tend to spit out more convergence warnings. Such warnings are typically more likely when one is trying to fit models with complex random effects structures, like those advocated by Barr et al. (2013).
 
-The dependent variable was the way that speakers used the adjectives. *Attributive* uses were those in which the adjective appeared before the noun it modified. *Relative clause* uses were those in which the adjective appeared in a relative clause, after the noun it modified. Examples are given below:
+To determine whether I could successfully fit a model of my *a*-adjective data with the maximal random effects structure, and whether the results would be the same as those published in 2011, I conducted a reanalysis of the Experiment 1 data from Boyd and Goldberg (2011).
+
+# The experiment
+
+Experiment 1 tested two hypotheses: (1) that native speakers of English disprefer using specific *a*-adjectives like *asleep*, *afloat*, and *alive* before the nouns they modify, and (2) that this restriction extends beyond the specific adjectives that speakers have experienced to *a*-adjectives in general---i.e., to novel *a*-adjectives like *ablim* and *adax*.
+
+Adult speakers of English viewed animations in which one of two labeled animals moved to a star. For example, a speaker might see an animation with two hamsters---one labeled "sleepy" and the other labeled "vigilant"---where the hamster labeled "sleepy" moved to a star. After viewing the animations, speakers were asked to briefly describe them.
+
+We manipulated the adjective class (*a* vs. non-*a*) and novelty (novel vs. real) of the adjectives that speakers produced in a 2 x 2 factorial design. This created four conditions where descriptions with different kinds of adjectives were elicited: real *a*-adjectives (e.g., *asleep*), novel *a*-adjectives (e.g., *ablim*), real non-*a*-adjectives (e.g., *sleepy*), and novel non-*a*-adjectives (e.g., *chammy*).
+
+The dependent variable was the type of structure that speakers used adjectives in, e.g.
 
 * **Attributive**: The sleepy hamster moved to the star.
+* **Relative clause**: The hamster that's sleepy moved to the star.
 
-* **Relative clause**: The hamster that's asleep moved to the star.
+As exemplified above, attributive uses were those in which the adjective appeared before the noun it modified. Relative clause uses were those in which the adjective appeared in a relative clause, after the noun it modified.
 
-# Importing and cleaning the data
+# The data
 
-The first step in processing the data is to read it in and take a look at the first few lines.
+A snippet of the Experiment 1 data is shown below. Nineteen adult native speakers of English provided descriptions using 16 different adjectives---four in each condition.
 
-```{r}
-adj.data = read.delim("AP_data.txt", header = TRUE)
-head(adj.data)
+```{r, echo = FALSE}
+adj.data <- read.delim("data/AP_data.txt", header = TRUE)
+adj.data$Subject <- factor(adj.data$Subject)
+adj.data$Experiment <- factor(adj.data$Experiment)
+adj.crit <- adj.data[adj.data$TrialType == "critical" & adj.data$Experiment == "1", ]
+adj.crit <- adj.crit[adj.crit$UttCode != "recording error", ]
+adj.crit <- adj.crit[adj.crit$Subject != "313", ]
+adj.crit <- adj.crit[adj.crit$Subject != "614", ]
+adj.crit$Subject <- adj.crit$Subject[, drop = TRUE]
+adj.crit$Item <- adj.crit$Item[, drop = TRUE]
+adj.crit$UttCode <- adj.crit$UttCode[, drop = TRUE]
+adj.crit <- adj.crit[, c("Subject", "Item", "Phonology", "Novelty", "UttCode")]
+colnames(adj.crit) <- c("Participant", "Item", "AdjClass", "Novelty", "Response")
+adj.crit$Response <- factor(adj.crit$Response,
+                    labels = c("attributive", "relative_clause"))
 ```
 
-Note above that Subject and Experiment look like integers, so R automatically treats them as such. We can manually convert them to factors as follows:
-
 ```{r}
-adj.data$Subject = factor(adj.data$Subject)
-adj.data$Experiment = factor(adj.data$Experiment)
-```
-
-Half of the dataframe consists of filler trials, which we're not interested in. To focus on critical trials we store only critical trials in a separate dataframe.
-
-```{r}
-adj.crit = adj.data[adj.data$TrialType == "critical", ]
-```
-
-Some critical trials need to be excluded. There was a recording error that led to the loss of seven critical trials for subject 304. In addition, during debriefing subjects 313 and 614 showed explicit knowledge of the experimental manipulations. All of their data needs to be excluded.
-
-```{r}
-adj.crit = adj.crit[adj.crit$UttCode != "recording error", ]
-adj.crit = adj.crit[adj.crit$Subject != "313", ]
-adj.crit = adj.crit[adj.crit$Subject != "614", ]
-```
-
-In the remaining data, the levels of some variables no longer exist. These unused levels are dropped.
-
-```{r}
-adj.crit$Subject = adj.crit$Subject[, drop = TRUE]
-adj.crit$Item = adj.crit$Item[, drop = TRUE]
-adj.crit$UttCode = adj.crit$UttCode[, drop = TRUE]
+head(adj.crit)
 ```
 
 # Visualization
 
-Before attempting any modeling, we create a figure to visualize the results across all three experiments. We first collapse across trials to create a dataframe summarizing the by-subject percentage of attributive responses in each of the four conditions.
+Here I provide a quick visualization of the Experiment 1 data. The first step is to collapse across trials to create a dataframe summarizing the by-participant percentage of attributive responses in each of the four conditions.
 
 ```{r}
 # Load plyr
 library(plyr)
 
-# Code "A" responses as 1 and "RC" responses as 0.
-adj.crit$attrib <- ifelse(adj.crit$UttCode == "A", 1, 0)
+# Code attributie responses as 1 and relative clause responses as 0.
+adj.crit$attrib <- ifelse(adj.crit$Response == "attributive", 1, 0)
 
 # Summarize the data.
-crit.sum1 <- ddply(adj.crit, c("Subject", "Phonology", "Novelty", "Experiment"),
-                   summarize, nTrials = sum(!is.na(Subject)),
-                   percentAttrib = mean(attrib, na.rm = TRUE) * 100)
+crit.sum1 <- ddply(adj.crit, c("Participant", "AdjClass", "Novelty"),
+                   summarize, nTrials = sum(!is.na(Participant)),
+                   percentAttributive = mean(attrib, na.rm = TRUE) * 100)
 ```            
 
-We then collapse across subjects to get a dataframe of condition means.
+The next step is to collapse across participants to get a dataframe of condition means.
 
 ```{r}
-crit.sum2 <- ddply(crit.sum1, c("Phonology", "Novelty", "Experiment"), summarize,
-                   nSubj = sum(!is.na(Subject)),
-                   percentAttrib = mean(percentAttrib, na.rm = TRUE))
+crit.sum2 <- ddply(crit.sum1, c("AdjClass", "Novelty"), summarize,
+                   nParticipant = sum(!is.na(Participant)),
+                   percentAttributive = mean(percentAttributive, na.rm = TRUE))
 ```
 
-The next step is to calculate within-subjects standard errors in each condition, and merge this information with the condition means.
+Then we need to calculate within-participant standard errors in each condition, and merge this information with the condition means.
 
 ```{r, message = FALSE}
 # Calculate within-subjects standard errors.
 library(Rmisc)
-crit.sum3 <- summarySEwithin(crit.sum1, measurevar = "percentAttrib",
-                    withinvars = c("Phonology", "Novelty"),
-                    betweenvars = "Experiment", idvar = "Subject", na.rm = TRUE,
+crit.sum3 <- summarySEwithin(crit.sum1, measurevar = "percentAttributive",
+                    withinvars = c("AdjClass", "Novelty"),
+                    idvar = "Participant", na.rm = TRUE,
                     conf.interval = .95)
 
 # Merge standard errors with condition means.
-crit.sum4 <- merge(crit.sum2[, c("Experiment", "Phonology", "Novelty", "percentAttrib")],
-                   crit.sum3[, c("Experiment", "Phonology", "Novelty", "se")],
-                   by = c("Experiment", "Phonology", "Novelty"))
+crit.sum4 <- merge(crit.sum2[, c("AdjClass", "Novelty", "percentAttributive")],
+                   crit.sum3[, c("AdjClass", "Novelty", "se")],
+                   by = c("AdjClass", "Novelty"))
 ```
 
-All of this informaton can now be fed into ggplot() to summarize subjects' behavior across the three experiments.
+All of this informaton can now be fed into ggplot() to summarize the basic Experiment 1 data pattern.
 
 ```{r}
-# Relabel levels of Experiment
-crit.sum4$Experiment <- factor(crit.sum4$Experiment,
-                               labels = c("Experiment 1", "Experiment 2", "Experiment 3"))
-
-# Load ggplot2 and increase font size
+# Load ggplot2.
 library(ggplot2)
-theme_set(theme_gray(base_size = 24))
+
+# Set theme to classic and increase font size.
+theme_set(theme_classic(base_size = 24))
 
 # Make Figure
-(ggplot(crit.sum4, aes(x = Novelty, y = percentAttrib, fill = Phonology))
+(ggplot(crit.sum4, aes(x = Novelty, y = percentAttributive, fill = AdjClass))
     + geom_bar(position = position_dodge(), stat = "identity", color = "black")
     + geom_errorbar(position = position_dodge(.9), width = .3,
-            aes(ymin = percentAttrib - se, ymax = percentAttrib + se))
-    + facet_grid(. ~ Experiment)
+            aes(ymin = percentAttributive - se, ymax = percentAttributive + se))
     + scale_fill_manual(name = "Adjective\nClass", breaks = c("A", "non-A"),
-            labels = c("A", "Non-A"), values = c("firebrick", "deepskyblue"))
+            labels = c("A", "Non-A"), values = c("green3", "deepskyblue"))
     + scale_x_discrete(name = "Novelty", limits = c("real", "novel"),
-            breaks = c("real", "novel"), labels = c("Familiar", "Novel"))
-    + scale_y_continuous(name = "Attributive Use (%)",
+            breaks = c("real", "novel"), labels = c("Real", "Novel"))
+    + scale_y_continuous(name = "Attributive Use (%)", limits = c(0, 100),
             breaks = seq(0, 100, 20)))
 ```
 
-# A logit mixed model of Experiment 1
+The figure suggests that speakers do indeed disprefer using *a*-adjectives attributively. In addition, it appears as if there may even be attributive avoidance for novel *a*-adjectives. This is important because it would provide evidence for the psychological reality of an abstract *a*-adjective class. The models that I create below explore these findings more rigorously.
 
-Here I use the Experiment 1 data to illustrate some issues that can arise when creating a logit mixed model. The code below creates a separate dataframe for the data.
+# Defining the maximal random effects structure
+
+The following cross-tabulations illustrate some features of the experimental design that are important for defining the maximal random effects structure. Adjective class and novelty were manipulated *within* participants:
 
 ```{r}
-exp1 = adj.crit[adj.crit$Experiment == "1", ]
-exp1$Subject = exp1$Subject[, drop = TRUE]
+head(xtabs(~ Participant + AdjClass, data = adj.crit))
+head(xtabs(~ Participant + Novelty, data = adj.crit))
 ```
 
-## Defining the random effects structure
-
-Experiment 1 crosses Phonology and Novelty in a 2 x 2 design. Phonology and Novelty were manipulated *within* subjects, as indicated in the cross-tabulations below. This means that the maximal model specification should include subject-specific random intercepts, and random slopes for Phonology, Novelty, and their interaction.
+But the same factors were manipulated *between* items:
 
 ```{r}
-xtabs(~ Subject + Phonology, data = exp1)
-xtabs(~ Subject + Novelty, data = exp1)
+head(xtabs(~ Item + AdjClass, data = adj.crit))
+head(xtabs(~ Item + Novelty, data = adj.crit))
 ```
 
-In contrast, the following cross-tabulations show that Phonology and Novelty were manipulated *between* items. This means that the maximal model specification should include item-specific random intercepts only.
+This means that the model should include a number of participant-specific random effects---random participant intercepts, and slopes for adjective class and novelty---but only random intercepts at the level of items.
 
-```{r}
-xtabs(~ Item + Phonology, data = exp1)
-xtabs(~ Item + Novelty, data = exp1)
-```
-
-## ANOVA-style coding
-
-R dummy codes factors by default. But the convention in language research is to use ANOVA-style coding for factorial designs. ANOVA-style coding can be implemented as follows.
-
-```{r}
+```{r, echo = FALSE}
 # Store proportions of data for each factor.
-phon.prop <- xtabs(~ Phonology, data = exp1) / nrow(exp1)
-nov.prop <- xtabs(~ Novelty, data = exp1) / nrow(exp1)
+class.prop <- xtabs(~ AdjClass, data = adj.crit) / nrow(adj.crit)
+nov.prop <- xtabs(~ Novelty, data = adj.crit) / nrow(adj.crit)
 
 # Use proportions to do ANOVA-style coding.
-contrasts(exp1$Phonology) = cbind("A" = c(unname(phon.prop[2]), -unname(phon.prop[1])))
-contrasts(exp1$Novelty) = cbind("novel" = c(unname(nov.prop[2]), -unname(nov.prop[1])))
+contrasts(adj.crit$AdjClass) = cbind("A" = c(unname(class.prop[2]),
+                                              -unname(class.prop[1])))
+contrasts(adj.crit$Novelty) = cbind("novel" = c(unname(nov.prop[2]),
+                                        -unname(nov.prop[1])))
 ```
 
-## Dealing with convergence warnings
+# Fitting a logit mixed effects model
 
 Fitting mixed models is rarely straightforward, especially when the model is complex. In the present case for instance, we're dealing with crossed random effects with the maximal random effects structure. Below is an initial attempt at fitting such a model that throws a number of warnings.
 
@@ -172,17 +160,49 @@ Fitting mixed models is rarely straightforward, especially when the model is com
 library(lme4)
 
 # Model
-exp1.glmer1 <- glmer(UttCode == "A" ~ 1 + Phonology * Novelty
-                     + (1 + (Phonology * Novelty)|Subject)
-                     + (1|Item), family = "binomial", data = exp1)
+exp1.glmer1 <- glmer(Response == "attributive" ~ 1 + AdjClass * Novelty
+                     + (1 + (AdjClass * Novelty)|Participant)
+                     + (1|Item), family = "binomial", data = adj.crit)
 ```
 
-An array of techniques can be used to deal with convergence warnings. Here I specify use of the bobyqa optimizer for both phases of fitting, and increase the maximum number of iterations. This allows for successful convergence. The fitted model shows that *a*-adjectives are less likely than non-*a*-adjectives to be used attributively, and novel adjectives are more likely than familiar adjectives to be used attributively.
+There are lots of different ways to troubleshoot lme4 convergence warnings. A helpful summary that I've used in the past can be found [here](https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html). In the present case the fix is relatively simple. The default for generalized linear mixed effects models is to use the bobyqa optimizer for the first phase of fitting, and Nelder-Mead for the second. Here, I restart the fitting process from `exp1.glmer1`'s ending parameters, and specify use of the bobyqa optimizer for both phases. This allows for successful convergence. The model replicates two findings from Boyd and Goldberg (2011): (1) *a*-adjectives are less likely than non-*a*-adjectives to be used attributively, and (2) that novel adjectives are more likely than real adjectives to be used attributively.
 
 ```{r}
 ss <- getME(exp1.glmer1, c("theta","fixef"))
 exp1.glmer2 <- update(exp1.glmer1, start = ss,
-                      control = glmerControl(optimizer = "bobyqa",
-                                             optCtrl = list(maxfun = 2e5)))
+                      control = glmerControl(optimizer = "bobyqa"))
+
+# Summary
 summary(exp1.glmer2)
 ```
+# Is there a general restriction against using *a*-adjectives attributively?
+
+To establish that speakers have learned a general *a*-adjective category, including a restriction against attributive use, we need to definitively show that speakers disprefer using novel *a*-adjectives like *ablim* and *adax* attributively relative to novel non-*a*-adjectives like *chammy*. Below I fit a new model using only data from Experiment 1's novel adjectives.
+
+```{r}
+# Create a subset dataframe of just novel trials.
+adj.nov <- adj.crit[adj.crit$Novelty == "novel", ]
+```
+
+```{r, echo = FALSE}
+# Store proportions of data for each factor.
+class.prop2 <- xtabs(~ AdjClass, data = adj.nov) / nrow(adj.nov)
+
+# Use proportions to do ANOVA-style coding.
+contrasts(adj.nov$AdjClass) = cbind("A" = c(unname(class.prop2[2]),
+                                              -unname(class.prop2[1])))
+```
+
+```{r}
+# Model
+exp1.glmer3 <- glmer(Response == "attributive" ~ 1 + AdjClass
+                     + (1 + AdjClass|Participant)
+                     + (1|Item),
+                     family = "binomial",
+                     data = adj.nov)
+
+# Summary
+summary(exp1.glmer3)
+```
+
+The results from this last model replicate another result from Boyd and Goldberg (2011): while attributive avoidance is numerically weaker among novel *a*-adjectives, it is still statistically significant. This argues in favor of the idea that speakers haven't simply memorized a list of *a*-adjectives that disprefer being used attributively. Instead, they've learned an abstract category such that new members of the category (e.g., *ablim*) show the same pattern of avoidance that older, more established members do (e.g., *asleep*).
