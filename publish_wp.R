@@ -8,7 +8,7 @@ library(markdown)
 
 # Load RWordPress and login to WordPress. The source for RWordPress and dependency XMLRPC had to be downloaded and compiled localy from http://www.omegahat.org.
 library(RWordPress)
-options(WordpressLogin = c(jeremy = ',lK1kY#t~E8:MWVD'),
+options(WordpressLogin = c(jeremy = "password"),
         WordpressURL = 'http://www.jeremyboyd.org/xmlrpc.php')
 
 # Convert and upload .Rmd file to WordPress.
